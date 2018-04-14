@@ -13,29 +13,34 @@ import tensorflow as tf
 from server import Server
 from client import Client
 
-logging.basicConfig(level=logging.ERROR,
-                    format='%(asctime)s %(levelname)s %(message)s')
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-logging.getLogger('tensorflow').disabled = True
-
-# Set random seeds for reproducibility.
-RANDOM_SEED = 42
-random.seed(RANDOM_SEED)
-np.random.seed(RANDOM_SEED)
-tf.set_random_seed(RANDOM_SEED)
-
 class Experiment:
-    def __init__(self, config):
+    def __init__(self, config, reporter=None):
+        # Set up logging.
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s %(levelname)s %(message)s'
+        )
+        os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+        logging.getLogger('tensorflow').disabled = True
+
+        # Set random seeds for reproducibility.
+        RANDOM_SEED = 42
+        random.seed(RANDOM_SEED)
+        np.random.seed(RANDOM_SEED)
+        tf.set_random_seed(RANDOM_SEED)
+
+        # Gather configurations.
         logging.info('Starting experiment.')
+        self.reporter = reporter
         self.config = config
-        self.num_clients = config['num_clients']
-        self.model_type = config['model_type']
-        self.dataset_type = config['dataset_type']
         self.fraction = config['fraction']
         self.max_rounds = config['max_rounds']
 
         # Set up datasets
         logging.info('Setting up datasets.')
+        self.num_clients = config['num_clients']
+        self.model_type = config['model_type']
+        self.dataset_type = config['dataset_type']
         X_train_list, y_train_list, X_test, y_test = \
             self.get_datasets(self.num_clients, self.model_type, self.dataset_type)
 
@@ -46,13 +51,10 @@ class Experiment:
         for X, y in zip(X_train_list, y_train_list):
             self.clients.append(Client(i, X, y))
             i += 1
-        self.server = Server(self.clients, X_test, y_test, config)
+        self.server = Server(self.clients, X_test, y_test, config, reporter)
 
-        # Set up models
+        # Set up models (will be changed to 'inject model')
         logging.info('Setting up the deep models.')
-        self.batch_size = config['batch_size']
-        self.epochs = config['epochs']
-        self.learning_rate = config['learning_rate']
         for client in self.clients:
             client.setup_model(self.model_type)
         logging.info('Done setting up experiment.')
@@ -91,7 +93,8 @@ class Experiment:
         return X_train_list, y_train_list, X_test, y_test
 
     def run(self):
-        self.server.federated_learning(self.fraction, self.max_rounds, self.model_type)
+        self.server.federated_learning(self.fraction, self.max_rounds,
+            self.model_type, self.reporter)
 
 
 if __name__ == '__main__':
@@ -147,6 +150,7 @@ if __name__ == '__main__':
         "save_dir": f,
         "goal_accuracy": g,
         "lr_decay": y,
+        "notes": n,
     }
 
     experiment = Experiment(config)

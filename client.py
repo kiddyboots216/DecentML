@@ -9,9 +9,6 @@ from models.perceptron import Perceptron
 from models.cnn import CNN
 from models.lstm import LSTM
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='[Client] %(asctime)s %(levelname)s %(message)s')
-
 class Client(object):
     def __init__(self, iden, X_train, y_train):
         self.iden = iden

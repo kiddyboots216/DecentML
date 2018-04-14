@@ -14,21 +14,19 @@ from models.perceptron import Perceptron
 from models.cnn import CNN
 from models.lstm import LSTM
 
-logging.basicConfig(level=logging.DEBUG,
-                    format='[Server] %(asctime)s %(levelname)s %(message)s')
-
 class Server:
-    def __init__(self, clients, X_test, y_test, config):
+    def __init__(self, clients, X_test, y_test, config, reporter=None):
         self.clients = clients
         self.X_test = X_test
         self.y_test = y_test
         self.config = config
         self.val_history = {
             "duration" : [],
+            "learning_rate": [],
             "config": config,
-            "learning_rate": []
         }
         self.save_path = self.config['save_dir'] + "/" + str(uuid.uuid1())
+        self.reporter = reporter
 
     def setup_model(self, model_type):
         self.model_type = model_type
@@ -69,6 +67,8 @@ class Server:
 
         ray.init(num_cpus=num_clients)
         for t in range(1, max_rounds + 1):
+            if self.reporter:
+                self.reporter(timesteps_total=t, val_accuracy=best_accuracy)
             if best_accuracy > goal_accuracy:
                 logging.info("Reached goal accuracy of {0} at round {1}."\
                     .format(goal_accuracy, t))
